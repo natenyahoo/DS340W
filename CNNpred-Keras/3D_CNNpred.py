@@ -151,7 +151,7 @@ def CNN(train_data, test_data, train_target, test_target):
     result = []
 
     # Running CNNpred several times
-    for i in range(1,40):
+    for i in range(1,75):
         K.clear_session()
         print ('i: ', i)
         my_file = Path( join(Base_dir, '3D-models/{}/model/{}-{}-{}-{}-{}.h5'.format(predict_index, epoc, seq_len, number_filter, drop, i)))
@@ -181,11 +181,11 @@ def CNN(train_data, test_data, train_target, test_target):
 
             model.compile(optimizer='Adam', loss='mae', metrics=['acc',f1])
 
-            best_model = callbacks.ModelCheckpoint(filepath, monitor='val_f1', verbose=0, save_best_only=True,
-                                                   save_weights_only=False, mode='max', period=1)
+            best_model = callbacks.ModelCheckpoint(filepath, monitor='f1', verbose=0, save_best_only=True,
+                                                   save_weights_only=False, mode='max', save_freq=1)
 
             model.fit(cnn_train_data, cnn_train_target, epochs=epoc, batch_size=128, verbose=0,callbacks=[best_model], validation_split=0.25)
-
+            
         model = load_model(filepath, custom_objects={'f1': f1})
         test_pred = sklearn_acc(model,cnn_test_data, cnn_test_target)
         print (test_pred)
@@ -219,13 +219,5 @@ print ('number of stocks = ', number_of_stocks)
 print ('fitting model')
 
 CNN(train_data, test_data, train_target, test_target)
-
-
-
-
-
-
-
-
 
 
