@@ -1,4 +1,82 @@
-### Managing the Training Session 
+import numpy as np
+import tensorflow as tf
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
+
+## Get Data 
+
+
+## Using LSTM Sample Data 
+
+og_X_train_3d_shape = 28
+
+x_train = np.loadtxt("/home/openvessel/Documents/Data Science/LSTM_Stock_Project/Sample_Stock_Training_Data/Sample_Stock_Dataset_X_train_Model_Ready.txt")
+
+x_train = x_train.reshape(
+    x_train.shape[0], x_train.shape[1] // og_X_train_3d_shape, og_X_train_3d_shape)
+
+y_train = pd.read_csv("/home/openvessel/Documents/Data Science/LSTM_Stock_Project/Sample_Stock_Training_Data/Sample_Stock_Dataset_y_train_Model_Ready.csv")
+
+y_train = y_train.to_numpy()
+
+# Using the Raw Stock Dataset 
+
+# raw_stock_data = pd.read_csv("Sample_Stock_Data_Raw_No_IDs.csv")
+# x_train, x_test, y_train, y_test = train_test_split(x_train, y_train, test_size=0.2, random_state=seed, shuffle=False)
+# x_train = np.append(x_train, y_train.values.reshape(-1, 1), axis=1)
+# x_test = np.append(x_test, y_test.values.reshape(-1, 1), axis=1)
+# x_train, y_train = split_sequences(x_train, TIMESTEPS)
+# x_test, y_test = split_sequences(x_test, TIMESTEPS)
+
+
+## Train Model 
+
+# Transformer Model Config 
+
+
+seed = 47
+TIMESTEPS = x_train.shape[1]
+
+num_heads=2
+num_layers_enc=2
+num_feed_forward=64
+num_features = x_train.shape[-1]
+time_steps = TIMESTEPS
+epochs = 20
+batch_size = 64
+
+
+######## Training Config #########
+
+model_results_path = '/home/openvessel/Documents/Data Science/LSTM_Stock_Project/LSTM_Model_Results_2'
+weights_file_path = ""
+
+early_stopping = True 
+monitor = 'loss' 
+patience = 10
+min_delta = 0.005
+
+## CustomVerbose() ... a custom callback 
+custom_verbose= False 
+train_verbose = True #if custom_verbose = False then would you like default verbose (True) or all verbose off (False) when training 
+
+## learning_rate_scheduler
+learning_rate_scheduler_bool = True
+
+metrics = ["accuracy"]
+
+## model_checkpoint callback creator. Choices: 'both', 'model', 'weights'
+model_and_weights_saved = 'both' 
+model_results_path = '/home/openvessel/Documents/Data Science/LSTM_Stock_Project/LSTM_Model_Results_2'
+
+## tensorboard 
+tensorboard = True 
+
+## ReduceLROnPlateau ? 
+reduce_lr_on_plateau = True 
+
+
 
 
 import numpy as np
@@ -39,20 +117,16 @@ import time
 ################################################
 
 
-from stock_transformer import Transformer
-
 
 
 ##################################################
-
-import config as fig
 
 
 def cross_validate_transformer(X, y, model_results_path, K = 3, **kwargs):
     scores = []
     histories = []
-    callbacks, model_path = callback_selector(early_stopping = fig.early_stopping, monitor = fig.monitor, patience = fig.patience, min_delta = fig.min_delta, learning_rate_scheduler_bool = fig.learning_rate_scheduler_bool, custom_verbose= fig.custom_verbose, metrics = fig.metrics, model_and_weights_saved = fig.model_and_weights_saved, tensorboard = fig.tensorboard, reduce_lr_on_plateau = fig.reduce_lr_on_plateau, model_results_path= fig.model_results_path)
-    for train, test in KFold(n_splits=K, shuffle=True).split(X,y):
+    callbacks, model_path = callback_selector(early_stopping = early_stopping, monitor = monitor, patience = patience, min_delta = min_delta, learning_rate_scheduler_bool = learning_rate_scheduler_bool, custom_verbose= custom_verbose, metrics = metrics, model_and_weights_saved = model_and_weights_saved, tensorboard = tensorboard, reduce_lr_on_plateau = reduce_lr_on_plateau, model_results_path= model_results_path)
+    for train, test in KFold(n_splits=K, shuffle=True).split(X,y)
         print(train)
         print(test)
         model = Transformer() # compile model
@@ -203,3 +277,32 @@ def callback_selector(early_stopping, monitor, patience, min_delta, learning_rat
     #     callbacks.append(learning_rate_scheduler) #####################
     
     return callbacks, model_path
+
+
+
+
+######### Create and Fit Model  #################
+
+model = Transformer(num_hid=num_features,
+                        time_steps=time_steps,
+                        time_embedding=True,
+                        num_head=num_heads,
+                        num_layers_enc=num_layers_enc,
+                        num_feed_forward=num_feed_forward)
+
+fit_transformer_model(model, x_train, y_train, epochs, batch_size)
+
+
+## Evaluate Results 
+
+
+# Transformer's way to evaluate performance 
+
+# results = model.evaluate(x_test, y_test)
+# print(results)
+
+
+# Using my LSTM Code to Evaluate 
+
+scores, histories = cross_validate_transformer(x_train, y_train, model_results_path)
+plot_histories(histories)

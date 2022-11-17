@@ -45,7 +45,7 @@ from stock_transformer import Transformer
 
 ##################################################
 
-import config as fig
+import runner as fig
 
 
 def cross_validate_transformer(X, y, model_results_path, K = 3, **kwargs):
