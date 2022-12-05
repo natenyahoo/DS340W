@@ -144,43 +144,42 @@ y_train_path = "/home/openvessel/Documents/Data Science/LSTM_Stock_Project/Sampl
 
 
 seed = 47
-TIMESTEPS = 30 ## x_train.shape[1]
 
-num_heads=2
-num_layers_enc=2
+num_heads=3
+num_layers_enc=3
 num_feed_forward=64
 num_features = 28 ## x_train.shape[-1]
-time_steps = TIMESTEPS
+time_steps = 30 ## x_train.shape[1]
 
-epochs = 20
+time_embedding = True
+
+
+epochs = 10
 batch_size = 64 ## 128
 
 
 ######## Training Config #########
 
 
-
 early_stopping = True 
-monitor = 'loss' 
-patience = 4
+monitor = 'val_loss' 
+patience = 5
 min_delta = 0.01
 
 ## CustomVerbose() ... a custom callback 
-custom_verbose= False 
-train_verbose = True #if custom_verbose = False then would you like default verbose (True) or all verbose off (False) when training 
+custom_verbose= True 
 
 ## learning_rate_scheduler
 learning_rate_scheduler_bool = True
 
-metrics = ["accuracy"]
+metrics = ['loss', 'val_loss']
 
 ## model_checkpoint callback creator. Choices: 'both', 'model', 'weights'
-model_and_weights_saved = 'both' 
+model_and_weights_saved = 'weights' 
 model_results_path = '/home/openvessel/Documents/Data Science/Capstone_Stock_Ai/Research_Transformer_Stock_Ai (DS 340W)/Transformer_Model_Results'
-weights_file_path = ""
 
 ## tensorboard 
 tensorboard = True 
 
 ## ReduceLROnPlateau ? 
-reduce_lr_on_plateau = True 
+reduce_lr_on_plateau = False 

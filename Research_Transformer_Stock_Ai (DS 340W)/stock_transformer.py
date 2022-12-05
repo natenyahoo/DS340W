@@ -6,21 +6,11 @@ from tensorflow.keras import layers
 from tensorflow import keras
 import numpy as np
 from sklearn.model_selection import train_test_split
+import sklearn
 
 
 import time 
 
-
-def smape(y_true, y_pred):
-    y_true = tf.cast(y_true, tf.float32)
-    y_pred = tf.cast(y_pred, tf.float32)
-    num = tf.math.abs(tf.math.subtract(y_true, y_pred))
-    denom = tf.math.add(tf.math.abs(y_true), tf.math.abs(y_pred))
-    denom = tf.math.divide(denom,200.0)
-    
-    val = tf.math.divide(num,denom)
-    val = tf.where(denom == 0.0, 0.0, val) 
-    return tf.reduce_mean(val)
 
 
 
@@ -148,19 +138,79 @@ class Transformer(keras.Model):
         return y
 
 
-def fit_transformer_model(model, x_train, y_train, epochs, batch_size):
+def smape(y_true, y_pred):
+    y_true = tf.cast(y_true, tf.float32)
+    y_pred = tf.cast(y_pred, tf.float32)
+    num = tf.math.abs(tf.math.subtract(y_true, y_pred))
+    denom = tf.math.add(tf.math.abs(y_true), tf.math.abs(y_pred))
+    denom = tf.math.divide(denom,200.0)
+    
+    val = tf.math.divide(num,denom)
+    val = tf.where(denom == 0.0, 0.0, val) 
+    return tf.reduce_mean(val)
+
+
+def rmse(predictions, targets):
+    y_true = tf.cast(targets, tf.float32)
+    y_pred = tf.cast(predictions, tf.float32)
+
+    MSE = tf.math.square(tf.math.subtract(y_pred, y_true).mean())
+
+
+    return tf.math.sqrt(MSE)
+  
+def mae(y_pred, y_true):
+    return sklearn.metrics.mean_absolute_error(y_true, y_pred, sample_weight=None, multioutput='uniform_average')
+
+
+# def fit_transformer_model(model, X, y, callbacks, epochs, batch_size, model_results_path):
+    
+#     x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=True)
+    
+#     opt = tf.keras.optimizers.Adam()
+#     loss = tf.keras.losses.MeanSquaredError() # tf.keras.metrics.RootMeanSquaredError() # smape, rmse, mae 
+
+#     model.compile(optimizer=opt, loss=loss) #smape
+#     model.fit(x_train, y_train, 
+#                 epochs=epochs, 
+#                 batch_size=batch_size, 
+#                 callbacks=callbacks, 
+#                 validation_data = (x_test, y_test),
+#                 verbose=2)
+    
+#     model.save(model_results_path) 
+
+#     history = model.history
+
+#     scores = model.evaluate(x_test, y_test, verbose = 2)
+
+#     return history, scores
+
+
+
+def fit_transformer_model(model, X, y, epochs, batch_size, model_results_path, callbacks):
+    
+    x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.25, shuffle=True)
+
     opt = tf.keras.optimizers.Adam()
-    loss = tf.keras.losses.mse
-    model.compile(optimizer=opt, loss=smape)
-    model.fit(x_train, y_train, epochs=epochs, batch_size=batch_size, verbose=2)
+    loss = tf.keras.losses.MeanSquaredError() # tf.keras.metrics.RootMeanSquaredError() # smape, rmse, mae 
 
+    model.compile(optimizer=opt, loss=loss) #smape
+    model.fit(x_train, y_train, 
+                epochs=epochs, 
+                batch_size=batch_size, 
+                verbose=2, 
+                validation_data = (x_test, y_test))
+                #, callbacks=callbacks
 
+    model.save(model_results_path)
 
+    print([model.evaluate(x_test, y_test, verbose = 2)])
 
+    return [model.history], [model.evaluate(x_test, y_test, verbose = 2)]
 
 
 ############################################################
-
 
 
 import config as fig
@@ -181,8 +231,6 @@ def cross_validate_transformer(X, y, model_results_path, K = 3, **kwargs):
     histories = []
     callbacks, model_path = callback_selector(early_stopping = fig.early_stopping, monitor = fig.monitor, patience = fig.patience, min_delta = fig.min_delta, learning_rate_scheduler_bool = fig.learning_rate_scheduler_bool, custom_verbose= fig.custom_verbose, metrics = fig.metrics, model_and_weights_saved = fig.model_and_weights_saved, tensorboard = fig.tensorboard, reduce_lr_on_plateau = fig.reduce_lr_on_plateau, model_results_path= fig.model_results_path)
     for train, test in KFold(n_splits=K, shuffle=True).split(X,y):
-        print(train)
-        print(test)
         model = Transformer() # compile model
         start = time.time()
         histories.append(model.fit(X[train], y[train], epochs = 10, batch_size = 32, callbacks=callbacks,
@@ -190,6 +238,9 @@ def cross_validate_transformer(X, y, model_results_path, K = 3, **kwargs):
                                    **kwargs).history)
         print(time.time() - start)
         scores.append(model.evaluate(X[test], y[test], verbose = 2)) # evaluate the test dataset
+    
+    print(scores)
+    print(np.array(scores))
     print("average test loss: ", np.asarray(scores)[:,0].mean())
     print("average test accuracy: ", np.asarray(scores)[:,1].mean())
     print(model.summary())
@@ -229,29 +280,37 @@ class Custom_Verbose(Callback): #####################
         print("The training session has begun...")
     
     def on_epoch_begin(self, epoch, logs = None):
-        print("Epoch #{} has begun...".format(epoch)) #####################
+        print("Epoch #{} has begun...".format(epoch+1)) #####################
     
     def on_epoch_end(self, epoch, logs={}):
-        print("Epoch #{} has ended.".format(epoch))
-        print("\tResults for Epoch#{}:".format(epoch)) #####################
+        print("Epoch #{} has ended.".format(epoch+1))
+        print("\tResults for Epoch#{}:".format(epoch+1)) #####################
         #for i in self.metrics: 
         print("\t\t loss = {:7.2f}".format(logs["loss"]))
-        print("\t\t accuracy = {:7.2f}".format(logs['accuracy']))
+        #print("\t\t accuracy = {:7.2f}".format(logs['accuracy']))
 
     def on_train_end(self, logs = {}): #####################
         print("Training has ended.")
         print("\tTraining Results:")
         #for i in self.metrics: 
         print("\t\t loss = {:7.2f}".format(logs["loss"]))
-        print("\t\t accuracy = {:7.2f}".format(logs['accuracy']))
+        #print("\t\t accuracy = {:7.2f}".format(logs['accuracy']))
 
+
+# def learning_rate_scheduler(epoch):
+#     initial_lrate = 0.3
+#     drop = 0.05
+#     epochs_drop = 2.0
+#     lrate = initial_lrate * math.pow(drop,  
+#             math.floor((1+epoch)/epochs_drop))
+#     return lrate
 
 def learning_rate_scheduler(epoch):
-    initial_lrate = 0.3
-    drop = 0.05
-    epochs_drop = 2.0
-    lrate = initial_lrate * math.pow(drop,  
-            math.floor((1+epoch)/epochs_drop))
+    initial_rate = 0.3
+    drop_rate = 0.035
+    epoch_interval_to_drop = 2 # every "x" epochs you drop the initial rate by the drop rate
+
+    lrate = initial_rate - ((epoch-1) * drop_rate)
     return lrate
 
 
@@ -261,20 +320,25 @@ def callback_selector(early_stopping, monitor, patience, min_delta, learning_rat
 
     now = datetime.now()
 
-    date_and_time = now.strftime("%d/%m/%Y %H:%M:%S")
+    date_and_time = now.strftime("%d-%m-%Y-%H-%M-%S")
 
     #### ModelCheckpoint() / models_and_weights_saved
 
+    saved_model_path = os.path.join(model_results_path,'Saved_Model_Results:{}'.format(date_and_time))
+    if not os.path.exists(saved_model_path):
+        os.mkdir(saved_model_path)
+
+
     if model_and_weights_saved == 'both': 
-        checkpoint = ModelCheckpoint('Liver_Detection-version:{}'.format(date_and_time)) #####################
+        checkpoint = ModelCheckpoint(saved_model_path) #####################
         callbacks.append(checkpoint)
 
     elif model_and_weights_saved == 'model':
-        checkpoint = ModelCheckpoint('Liver_Detection-version:{}'.format(date_and_time), save_model_only = True) #####################
+        checkpoint = ModelCheckpoint(saved_model_path, save_model_only = True) #####################
         callbacks.append(checkpoint) 
 
     elif model_and_weights_saved == 'weights':
-        checkpoint = ModelCheckpoint('Liver_Detection-version:{}'.format(date_and_time), save_weights_only = True)
+        checkpoint = ModelCheckpoint(saved_model_path, save_weights_only = True)
         callbacks.append(checkpoint) 
 
     #### EarlyStopping / early_stopping 
@@ -295,15 +359,11 @@ def callback_selector(early_stopping, monitor, patience, min_delta, learning_rat
     model_path = ''
     if tensorboard == True: 
         
-        model_path = os.path.join(model_results_path, 'Model_{}'.format(datetime.now().strftime("%m%d--%H%M")))
-        if not os.path.exists(model_path):
-            os.mkdir(model_path)
-        
-        tensorboard_model_path = os.path.join(model_path, "Tensorboard_Results")
+        tensorboard_model_path = os.path.join(saved_model_path, "Tensorboard_Results")
         if not os.path.exists(tensorboard_model_path):
             os.mkdir(tensorboard_model_path)
 
-        callbacks.append(TensorBoard(log_dir = tensorboard_model_path, update_freq = 'epoch'))
+        callbacks.append(TensorBoard(log_dir = tensorboard_model_path, histogram_freq=1))
     
     if reduce_lr_on_plateau == True:
         callbacks.append(ReduceLROnPlateau(monitor = 'val_loss', factor = 0.2, patience = 2, min_lr= 0.001))
@@ -341,5 +401,3 @@ def callback_selector(early_stopping, monitor, patience, min_delta, learning_rat
     #     callbacks.append(learning_rate_scheduler) #####################
     
     return callbacks, model_path
-
-

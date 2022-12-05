@@ -67,11 +67,13 @@ def cross_validate_transformer(X, y, model_results_path, K = 3, **kwargs):
     print(model.summary())
     return scores, histories
 
-
-def plot_histories(histories, metrics = ['loss', 'accuracy', 'val_accuracy','val_loss']):
+def plot_histories(histories, model_results_path, metrics = ['loss', 'accuracy', 'val_accuracy','val_loss']):
     """
     function to plot the histories of data
     """
+
+    print("START OF PLOT HISTORIES")
+
     fig, axes = plt.subplots(nrows = (len(metrics) - 1) // 2 + 1, ncols = 2, figsize = (16,16))
     axes = axes.reshape((len(metrics) - 1) // 2 + 1, 2)
     for i,metric in enumerate(metrics):
@@ -79,8 +81,10 @@ def plot_histories(histories, metrics = ['loss', 'accuracy', 'val_accuracy','val
             axes[(i+2)//2 - 1, 1 - (i+1)%2].plot(history[metric])
             axes[(i+2)//2 - 1, 1 - (i+1)%2].legend([i for i in range(len(histories))])
             axes[(i+2)//2 - 1, 1 - (i+1)%2].set_xticks(np.arange(max(history[metric])))
+    
+        plt.savefig(model_results_path + 'K-Fold #{}.png'.format(i))
 
-
+    print("END OF PLOT HISTORIES")
 
 
 class Custom_Verbose(Callback): #####################
