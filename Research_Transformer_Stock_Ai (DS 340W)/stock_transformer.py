@@ -94,7 +94,7 @@ class TransformerEncoder(layers.Layer):
         return self.layernorm2(out1 + ffn_output)
 
 
-## The Transformer Model 
+## The Transformer Model from https://www.kaggle.com/code/peressim/tps-jan-2022-transformer-with-time2vec/notebook
 
 class Transformer(keras.Model):
     def __init__(
@@ -163,35 +163,10 @@ def mae(y_pred, y_true):
     return sklearn.metrics.mean_absolute_error(y_true, y_pred, sample_weight=None, multioutput='uniform_average')
 
 
-# def fit_transformer_model(model, X, y, callbacks, epochs, batch_size, model_results_path):
+def fit_transformer_model(model, X, y, callbacks, epochs, batch_size, model_results_path):
     
-#     x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=True)
+    x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=True)
     
-#     opt = tf.keras.optimizers.Adam()
-#     loss = tf.keras.losses.MeanSquaredError() # tf.keras.metrics.RootMeanSquaredError() # smape, rmse, mae 
-
-#     model.compile(optimizer=opt, loss=loss) #smape
-#     model.fit(x_train, y_train, 
-#                 epochs=epochs, 
-#                 batch_size=batch_size, 
-#                 callbacks=callbacks, 
-#                 validation_data = (x_test, y_test),
-#                 verbose=2)
-    
-#     model.save(model_results_path) 
-
-#     history = model.history
-
-#     scores = model.evaluate(x_test, y_test, verbose = 2)
-
-#     return history, scores
-
-
-
-def fit_transformer_model(model, X, y, epochs, batch_size, model_results_path, callbacks):
-    
-    x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.25, shuffle=True)
-
     opt = tf.keras.optimizers.Adam()
     loss = tf.keras.losses.MeanSquaredError() # tf.keras.metrics.RootMeanSquaredError() # smape, rmse, mae 
 
@@ -199,15 +174,42 @@ def fit_transformer_model(model, X, y, epochs, batch_size, model_results_path, c
     model.fit(x_train, y_train, 
                 epochs=epochs, 
                 batch_size=batch_size, 
-                verbose=2, 
-                validation_data = (x_test, y_test))
-                #, callbacks=callbacks
+                callbacks=callbacks, 
+                validation_data = (x_test, y_test),
+                verbose=2)
+    
+    model.save(model_results_path) 
 
-    model.save(model_results_path)
+    history = [model.history]
 
-    print([model.evaluate(x_test, y_test, verbose = 2)])
+    scores = [model.evaluate(x_test, y_test, verbose = 2)]
 
-    return [model.history], [model.evaluate(x_test, y_test, verbose = 2)]
+    return history, scores
+
+
+
+def fit_transformer_model_w_K_fold(model, X, y, epochs, batch_size, callbacks, model_results_path, K = 3, **kwargs):
+    
+    scores = []
+    histories = []
+    for train_fold, test_fold in KFold(n_splits=K, shuffle=True).split(X,y):
+        opt = tf.keras.optimizers.Adam()
+        loss = tf.keras.losses.MeanSquaredError() # tf.keras.metrics.RootMeanSquaredError() # smape, rmse, mae 
+
+        model.compile(optimizer=opt, loss=loss) #smape
+        histories.append(model.fit(X[train_fold], y[train_fold], epochs=epochs, batch_size=batch_size, callbacks=callbacks,
+                                   validation_data = (X[test_fold], y[test_fold]), # feed in the test data for plotting
+                                   **kwargs).history)
+        model.save(model_results_path)    
+        scores.append(model.evaluate(X[test_fold], y[test_fold], verbose = 2)) # evaluate the test dataset
+    print(scores)
+    print(np.array(scores))
+    print("average test loss: ", np.asarray(scores)[:,0].mean())
+    print("average test accuracy: ", np.asarray(scores)[:,1].mean())
+    print(model.summary())
+    return scores, histories
+
+
 
 
 ############################################################
@@ -247,10 +249,13 @@ def cross_validate_transformer(X, y, model_results_path, K = 3, **kwargs):
     return scores, histories
 
 
-def plot_histories(histories, metrics = ['loss', 'accuracy', 'val_accuracy','val_loss']):
+def plot_histories(histories, model_results_path, metrics = ['loss', 'accuracy', 'val_accuracy','val_loss']):
     """
     function to plot the histories of data
     """
+
+    print("START OF PLOT HISTORIES")
+
     fig, axes = plt.subplots(nrows = (len(metrics) - 1) // 2 + 1, ncols = 2, figsize = (16,16))
     axes = axes.reshape((len(metrics) - 1) // 2 + 1, 2)
     for i,metric in enumerate(metrics):
@@ -258,8 +263,10 @@ def plot_histories(histories, metrics = ['loss', 'accuracy', 'val_accuracy','val
             axes[(i+2)//2 - 1, 1 - (i+1)%2].plot(history[metric])
             axes[(i+2)//2 - 1, 1 - (i+1)%2].legend([i for i in range(len(histories))])
             axes[(i+2)//2 - 1, 1 - (i+1)%2].set_xticks(np.arange(max(history[metric])))
+    
+        plt.savefig(model_results_path + 'K-Fold #{}.png'.format(i))
 
-
+    print("END OF PLOT HISTORIES")
 
 
 ########################################################
